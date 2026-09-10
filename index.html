@@ -119,6 +119,8 @@
     border:1.5px solid #e3e3e0; background:#fff; color:var(--muted); cursor:default; line-height:1.3;
   }
   .badge-recurso .br-icone{font-size:0.95rem; display:block;}
+  .badge-recurso .br-nome{display:block; font-size:0.66rem; font-weight:700; margin-top:1px;}
+  .badge-recurso .br-livre{display:block; font-size:0.6rem; opacity:0.75; margin-top:1px;}
   .badge-recurso.ocupado{
     color:#fff; border-color:transparent; cursor:pointer; font-weight:600;
   }
@@ -415,18 +417,18 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwM3ym72ElwNJLr
 
 /* ===================== DADOS FIXOS DA ESCOLA ===================== */
 const RECURSOS = [
-  { id: "Sala de Vídeo", nome: "Sala de Vídeo", icone: "🎬", cor: "#c9a227",
+  { id: "Sala de Vídeo", nome: "Sala de Vídeo", curto: "Sala de Vídeo", icone: "🎬", cor: "#c9a227",
     cuidado: "Ao terminar: deixe a lousa e os demais aparelhos desligados, e o quadro limpo." },
-  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", icone: "💻", cor: "#1c4270",
+  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", curto: "Laboratório", icone: "💻", cor: "#1c4270",
     cuidado: "Ao terminar: devolva com todos os cabos conectados, confira a quantidade e deixe ligado para carregar." },
-  { id: "Biblioteca", nome: "Biblioteca", icone: "📚", cor: "#1f7a4d",
+  { id: "Biblioteca", nome: "Biblioteca", curto: "Biblioteca", icone: "📚", cor: "#1f7a4d",
     cuidado: "Ao terminar: recoloque as carteiras e mesas no lugar, desligue o ar-condicionado, feche a porta e a janela, e devolva as chaves." }
 ];
 
 const TURNOS = [
-  { id: "Matutino", aulas: 6 },
-  { id: "Vespertino", aulas: 5 },
-  { id: "Noturno", aulas: 5 }
+  { id: "Matutino", aulas: 6, cor: "#c9822f", icone: "☀️" },
+  { id: "Vespertino", aulas: 5, cor: "#1c6f9c", icone: "🌤️" },
+  { id: "Noturno", aulas: 5, cor: "#2b2360", icone: "🌙" }
 ];
 
 const DIAS_SEMANA = [
@@ -519,7 +521,8 @@ function renderizarGrade() {
 
     const header = document.createElement('div');
     header.className = 'turno-header';
-    header.innerHTML = `${turno.id} <span class="badge">${turno.aulas} aula(s)</span>`;
+    header.style.background = `linear-gradient(135deg, ${turno.cor}, ${turno.cor}cc)`;
+    header.innerHTML = `${turno.icone} ${turno.id} <span class="badge">${turno.aulas} aula(s)</span>`;
     bloco.appendChild(header);
 
     const table = document.createElement('table');
@@ -649,7 +652,8 @@ function renderizarVisaoSemana() {
   TURNOS.forEach(turno => {
     const titulo = document.createElement('div');
     titulo.className = 'visao-turno-titulo';
-    titulo.textContent = turno.id;
+    titulo.style.background = turno.cor;
+    titulo.textContent = `${turno.icone} ${turno.id}`;
     cont.appendChild(titulo);
 
     for (let aula = 1; aula <= turno.aulas; aula++) {
@@ -663,11 +667,16 @@ function renderizarVisaoSemana() {
         );
         if (ag) {
           badgesHtml += `<div class="badge-recurso ocupado" style="background:${r.cor}" onclick='alert(${JSON.stringify(`${r.nome}\n${ag.professor}` + (ag.disciplina ? `\n${ag.disciplina}` : '') + (ag.turma ? ` · ${ag.turma}` : '') + (ag.observacao ? `\n${ag.observacao}` : ''))})'>
-              <span class="br-icone">${r.icone}</span>${r.nome.split(' ')[0]}
+              <span class="br-icone">${r.icone}</span>
+              <span class="br-nome">${r.curto}</span>
               <span class="br-prof">${escapeHtml(ag.professor)}</span>
             </div>`;
         } else {
-          badgesHtml += `<div class="badge-recurso"><span class="br-icone">${r.icone}</span>livre</div>`;
+          badgesHtml += `<div class="badge-recurso">
+              <span class="br-icone">${r.icone}</span>
+              <span class="br-nome">${r.curto}</span>
+              <span class="br-livre">livre</span>
+            </div>`;
         }
       });
       badgesHtml += '</div>';
