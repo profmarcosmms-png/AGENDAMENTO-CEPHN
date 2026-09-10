@@ -133,6 +133,29 @@
     padding:14px 18px; border-radius:var(--radius); margin-bottom:18px; font-size:0.9rem;
   }
 
+  .aviso-importante{
+    background:linear-gradient(135deg,#7a1f1f,#a3271f 60%,#7a1f1f);
+    border:2px solid #e0b84a; border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px 18px; margin-bottom:18px; cursor:pointer; transition:.15s; position:relative;
+  }
+  .aviso-importante:hover{transform:translateY(-1px); box-shadow:0 6px 20px rgba(122,31,31,0.35);}
+  .aviso-importante .ai-tag{
+    display:inline-block; background:var(--gold); color:#4a1a1a; font-weight:800; font-size:0.72rem;
+    letter-spacing:.06em; padding:3px 10px; border-radius:999px; margin-bottom:7px;
+  }
+  .aviso-importante .ai-texto{
+    color:#fff; font-size:0.95rem; font-weight:600; line-height:1.45; white-space:pre-wrap;
+  }
+  .aviso-importante .ai-editar{
+    color:#f3d9d9; font-size:0.68rem; margin-top:8px; opacity:0.85;
+  }
+  .aviso-importante.vazio{
+    background:#f4f2ec; border:1.5px dashed #cfc9b8;
+  }
+  .aviso-importante.vazio .ai-tag{background:#e4dfce; color:#6b5a1e;}
+  .aviso-importante.vazio .ai-texto{color:var(--muted); font-weight:500; font-style:italic;}
+  .aviso-importante.vazio .ai-editar{color:var(--muted);}
+
   .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
   .tab{
     flex:1 1 220px;
@@ -211,23 +234,31 @@
   }
 
   .slot-empty{
-    height:64px; border-radius:10px; border:1.5px dashed #cfd6e2; background:#fafbfd;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    color:var(--muted); font-size:0.78rem; transition:.12s;
+    min-height:78px; border-radius:12px; border:1.5px solid #e3e3e0; background:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;
+    color:var(--muted); font-size:0.72rem; transition:.15s; padding:8px 4px; text-align:center;
+    box-shadow:0 1px 3px rgba(15,42,74,0.05);
   }
-  .slot-empty:hover{border-color:var(--gold); background:#fffaf0; color:var(--navy);}
+  .slot-empty .se-icone{font-size:1.15rem; display:block;}
+  .slot-empty .se-nome{display:block; font-size:0.68rem; font-weight:700; color:var(--navy); margin-top:3px;}
+  .slot-empty .se-status{display:block; font-size:0.64rem; opacity:0.7; margin-top:1px;}
+  .slot-empty:hover{border-color:var(--gold); background:#fffaf0; box-shadow:0 3px 10px rgba(201,162,39,0.25); transform:translateY(-1px);}
 
   .slot-booked{
-    min-height:64px; border-radius:10px; background:var(--ok-bg); border:1.5px solid #bfe3cd;
-    padding:8px 10px; font-size:0.78rem; position:relative;
+    min-height:78px; border-radius:12px; border:none; color:#fff;
+    padding:9px 8px; font-size:0.72rem; position:relative; text-align:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    box-shadow:0 2px 8px rgba(15,42,74,0.18); cursor:pointer;
   }
-  .slot-booked .prof{font-weight:700; color:var(--navy); font-size:0.82rem;}
-  .slot-booked .disc{color:var(--muted); margin-top:2px;}
-  .slot-booked .obs{color:var(--muted); margin-top:2px; font-style:italic;}
+  .slot-booked .sb-icone{font-size:1.1rem; display:block;}
+  .slot-booked .prof{font-weight:700; font-size:0.74rem; margin-top:3px; line-height:1.25;}
+  .slot-booked .disc{opacity:0.9; margin-top:1px; font-size:0.66rem;}
+  .slot-booked .obs{opacity:0.85; margin-top:2px; font-style:italic; font-size:0.64rem;}
   .slot-booked .cancel-btn{
-    margin-top:6px; background:none; border:none; color:var(--danger);
-    font-size:0.72rem; font-weight:600; cursor:pointer; padding:0; text-decoration:underline;
+    margin-top:5px; background:rgba(255,255,255,0.22); border:none; color:#fff; border-radius:999px;
+    font-size:0.64rem; font-weight:600; cursor:pointer; padding:3px 10px;
   }
+  .slot-booked .cancel-btn:hover{background:rgba(255,255,255,0.35);}
 
   .slot-mine{outline:2px solid var(--gold);}
 
@@ -275,7 +306,7 @@
   }
 
   @media print{
-    header.top,.tabs,.weeknav,.search-row,.overlay,footer.credits,.aviso-uso{display:none !important;}
+    header.top,.tabs,.weeknav,.search-row,.overlay,footer.credits,.aviso-uso,.aviso-importante{display:none !important;}
     .slot-empty{display:none;}
     body{background:#fff;}
   }
@@ -315,6 +346,12 @@
     ⚠️ O endereço do backend (Apps Script) ainda não foi configurado. Abra o arquivo <code>index.html</code> em um editor de texto,
     localize a linha <code>const APPS_SCRIPT_URL</code> no início do <code>&lt;script&gt;</code> e cole a URL do seu Web App do Google Apps Script.
     Sem isso, os agendamentos não serão salvos nem compartilhados entre os professores.
+  </div>
+
+  <div class="aviso-importante" id="avisoImportanteBox" onclick="abrirModalAviso()">
+    <div class="ai-tag">⚠️ IMPORTANTE</div>
+    <div class="ai-texto" id="avisoImportanteTexto">Carregando...</div>
+    <div class="ai-editar">✎ toque para editar (coordenação)</div>
   </div>
 
   <div class="tabs" id="tabs"></div>
@@ -408,6 +445,27 @@
   </div>
 </div>
 
+<!-- Modal: Aviso importante (coordenação) -->
+<div class="overlay" id="overlayAviso">
+  <div class="modal">
+    <h3>⚠️ Aviso importante</h3>
+    <p class="sub">Editável só pela coordenação, com a senha. Deixe o texto em branco para remover o aviso do topo do app.</p>
+    <div class="field">
+      <label>Senha de coordenação *</label>
+      <input type="password" id="avisoSenha" placeholder="Digite a senha">
+    </div>
+    <div class="field">
+      <label>Texto do aviso</label>
+      <textarea id="avisoTexto" placeholder="Ex: Sala de Vídeo em manutenção nesta semana, uso suspenso até 6ª feira." style="min-height:90px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="fecharModalAviso()">Cancelar</button>
+      <button class="btn primary" id="btnSalvarAviso" onclick="salvarAvisoImportante()">Salvar aviso</button>
+    </div>
+    <div class="msg" id="msgAviso"></div>
+  </div>
+</div>
+
 <script>
 /* =====================================================================
    CONFIGURAÇÃO — cole aqui a URL do seu Web App do Google Apps Script
@@ -444,6 +502,7 @@ let estado = {
   recursoAtivo: RECURSOS[0].id,
   inicioSemana: getSegundaFeira(new Date()),
   agendamentos: [],
+  avisoImportante: { texto: "", atualizadoEm: null },
   carregando: false,
   agendarContexto: null,   // {recurso, data, diaSemana, turno, aula}
   cancelarContexto: null   // {id}
@@ -512,6 +571,7 @@ function renderizarGrade() {
   renderizarWeekNav();
 
   const filtroProf = (document.getElementById('buscaProfessor').value || '').trim().toLowerCase();
+  const recursoAtivoObj = RECURSOS.find(r => r.id === estado.recursoAtivo);
   const cont = document.getElementById('grades');
   cont.innerHTML = '';
 
@@ -558,14 +618,19 @@ function renderizarGrade() {
         tds += '<td>';
         if (agendamento) {
           const escondido = filtroProf && !(agendamento.Professor||'').toLowerCase().includes(filtroProf);
-          tds += `<div class="slot-booked" style="${escondido ? 'opacity:0.25' : ''}">
-              <div class="prof">👤 ${escapeHtml(agendamento.Professor)}</div>
+          tds += `<div class="slot-booked" style="background:${recursoAtivoObj.cor};${escondido ? 'opacity:0.25' : ''}" onclick='abrirModalCancelar(${JSON.stringify(agendamento.ID)}, ${JSON.stringify(agendamento.Professor)})'>
+              <span class="sb-icone">${recursoAtivoObj.icone}</span>
+              <div class="prof">${escapeHtml(agendamento.Professor)}</div>
               ${agendamento.Disciplina ? `<div class="disc">${escapeHtml(agendamento.Disciplina)}${agendamento.Turma ? ' · ' + escapeHtml(agendamento.Turma) : ''}</div>` : (agendamento.Turma ? `<div class="disc">${escapeHtml(agendamento.Turma)}</div>` : '')}
               ${agendamento.Observacao ? `<div class="obs">${escapeHtml(agendamento.Observacao)}</div>` : ''}
-              <button class="cancel-btn" onclick='abrirModalCancelar(${JSON.stringify(agendamento.ID)}, ${JSON.stringify(agendamento.Professor)})'>Cancelar reserva</button>
+              <button class="cancel-btn" onclick='event.stopPropagation(); abrirModalCancelar(${JSON.stringify(agendamento.ID)}, ${JSON.stringify(agendamento.Professor)})'>Cancelar</button>
             </div>`;
         } else {
-          tds += `<div class="slot-empty" onclick='abrirModalAgendar(${JSON.stringify(estado.recursoAtivo)}, "${dataISO}", "${dia.nome}", "${turno.id}", ${aula})'>+ Agendar</div>`;
+          tds += `<div class="slot-empty" onclick='abrirModalAgendar(${JSON.stringify(estado.recursoAtivo)}, "${dataISO}", "${dia.nome}", "${turno.id}", ${aula})'>
+              <span class="se-icone">${recursoAtivoObj.icone}</span>
+              <span class="se-nome">${recursoAtivoObj.curto}</span>
+              <span class="se-status">livre · toque p/ agendar</span>
+            </div>`;
         }
         tds += '</td>';
       });
@@ -684,6 +749,58 @@ function renderizarVisaoSemana() {
       cont.appendChild(linha);
     }
   });
+}
+
+/* ===================== AVISO IMPORTANTE (coordenação) ===================== */
+function renderizarAvisoImportante() {
+  const box = document.getElementById('avisoImportanteBox');
+  const texto = (estado.avisoImportante && estado.avisoImportante.texto) ? estado.avisoImportante.texto.trim() : '';
+  if (texto) {
+    box.classList.remove('vazio');
+    document.getElementById('avisoImportanteTexto').textContent = texto;
+  } else {
+    box.classList.add('vazio');
+    document.getElementById('avisoImportanteTexto').textContent = 'Nenhum aviso da coordenação no momento.';
+  }
+}
+
+function abrirModalAviso() {
+  document.getElementById('avisoSenha').value = '';
+  document.getElementById('avisoTexto').value = (estado.avisoImportante && estado.avisoImportante.texto) || '';
+  document.getElementById('msgAviso').style.display = 'none';
+  document.getElementById('overlayAviso').classList.add('show');
+}
+function fecharModalAviso() {
+  document.getElementById('overlayAviso').classList.remove('show');
+}
+
+async function salvarAvisoImportante() {
+  const senha = document.getElementById('avisoSenha').value;
+  const texto = document.getElementById('avisoTexto').value;
+  const msgEl = document.getElementById('msgAviso');
+  if (!senha) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'Digite a senha de coordenação.'; msgEl.style.display = 'block';
+    return;
+  }
+  if (!apsConfigurado()) return;
+
+  const btn = document.getElementById('btnSalvarAviso');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  try {
+    const resp = await chamarBackend({ action: 'salvarAviso', senha, texto });
+    if (resp.success) {
+      estado.avisoImportante = { texto, atualizadoEm: new Date().toISOString() };
+      renderizarAvisoImportante();
+      fecharModalAviso();
+    } else {
+      msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Senha incorreta.'; msgEl.style.display = 'block';
+    }
+  } catch (err) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor.'; msgEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar aviso';
+  }
 }
 
 function abrirModalAgendar(recurso, dataISO, diaSemanaNome, turno, aula) {
@@ -816,6 +933,8 @@ async function carregarAgendamentos(manual) {
     const data = await resp.json();
     if (data.success) {
       estado.agendamentos = data.agendamentos || [];
+      if (data.aviso) estado.avisoImportante = data.aviso;
+      renderizarAvisoImportante();
       dot.style.background = '#1f7a4d';
       texto.textContent = 'Sincronizado';
     } else {
@@ -833,8 +952,10 @@ async function carregarAgendamentos(manual) {
 document.getElementById('overlayAgendar').addEventListener('click', e => { if (e.target.id==='overlayAgendar') fecharModalAgendar(); });
 document.getElementById('overlayCancelar').addEventListener('click', e => { if (e.target.id==='overlayCancelar') fecharModalCancelar(); });
 document.getElementById('overlayVisaoSemana').addEventListener('click', e => { if (e.target.id==='overlayVisaoSemana') fecharVisaoSemana(); });
+document.getElementById('overlayAviso').addEventListener('click', e => { if (e.target.id==='overlayAviso') fecharModalAviso(); });
 
 renderizarGrade();
+renderizarAvisoImportante();
 apsConfigurado();
 carregarAgendamentos();
 setInterval(() => carregarAgendamentos(false), 30000); // sincroniza a cada 30s
