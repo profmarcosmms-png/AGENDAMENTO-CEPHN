@@ -77,6 +77,52 @@
     transition:.15s;
   }
   .pill-btn:hover{background:rgba(255,255,255,0.2);}
+  .pill-destaque{
+    background:var(--gold); color:var(--navy-dark); border-color:var(--gold-light);
+    font-weight:700;
+  }
+  .pill-destaque:hover{background:var(--gold-light);}
+
+  /* ===== Visão da Semana ===== */
+  .modal-visao{
+    background:#fff; border-radius:16px; padding:20px; width:100%; max-width:520px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.3); max-height:92vh; overflow:auto;
+  }
+  .visao-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
+  .visao-header h3{margin:0; color:var(--navy);}
+  .visao-fechar{background:#eceef2; border:none; border-radius:8px; padding:7px 12px; cursor:pointer; font-weight:600;}
+  .visao-semana-range{color:var(--muted); font-size:0.82rem; margin-bottom:14px;}
+
+  .dia-chips{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:14px;}
+  .dia-chip{
+    flex:0 0 auto; background:#f2f1ec; border:2px solid transparent; border-radius:12px;
+    padding:8px 12px; text-align:center; cursor:pointer; min-width:56px;
+  }
+  .dia-chip .dc-nome{font-size:0.68rem; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .dia-chip .dc-data{font-size:0.95rem; color:var(--navy); font-weight:700;}
+  .dia-chip.active{border-color:var(--gold); background:#fffaf0;}
+
+  .visao-turno-titulo{
+    font-size:0.78rem; font-weight:700; color:#fff; background:var(--navy);
+    padding:5px 10px; border-radius:999px; display:inline-block; margin:14px 0 8px;
+  }
+  .visao-linha{
+    display:flex; align-items:center; gap:8px; margin-bottom:8px;
+    background:#fafafa; border-radius:10px; padding:8px;
+  }
+  .visao-linha .vl-aula{
+    flex:0 0 34px; text-align:center; font-weight:700; color:var(--navy); font-size:0.85rem;
+  }
+  .visao-badges{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; flex:1;}
+  .badge-recurso{
+    border-radius:9px; padding:6px 4px; text-align:center; font-size:0.66rem;
+    border:1.5px solid #e3e3e0; background:#fff; color:var(--muted); cursor:default; line-height:1.3;
+  }
+  .badge-recurso .br-icone{font-size:0.95rem; display:block;}
+  .badge-recurso.ocupado{
+    color:#fff; border-color:transparent; cursor:pointer; font-weight:600;
+  }
+  .badge-recurso .br-prof{display:block; font-size:0.62rem; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   main{max-width:1200px;margin:0 auto;padding:20px;}
 
@@ -255,6 +301,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="pill-btn pill-destaque" onclick="abrirVisaoSemana()">📅 Visão da Semana</button>
       <button class="pill-btn" onclick="carregarAgendamentos(true)">↻ Atualizar</button>
       <button class="pill-btn" onclick="window.print()">🖨 Imprimir semana</button>
     </div>
@@ -346,6 +393,19 @@
   </div>
 </div>
 
+<!-- Modal: Visão da Semana -->
+<div class="overlay" id="overlayVisaoSemana">
+  <div class="modal-visao">
+    <div class="visao-header">
+      <h3>📅 Visão da Semana</h3>
+      <button class="visao-fechar" onclick="fecharVisaoSemana()">Fechar ✕</button>
+    </div>
+    <div class="visao-semana-range" id="visaoSemanaRange"></div>
+    <div class="dia-chips" id="diaChips"></div>
+    <div id="visaoConteudo"></div>
+  </div>
+</div>
+
 <script>
 /* =====================================================================
    CONFIGURAÇÃO — cole aqui a URL do seu Web App do Google Apps Script
@@ -355,11 +415,11 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwM3ym72ElwNJLr
 
 /* ===================== DADOS FIXOS DA ESCOLA ===================== */
 const RECURSOS = [
-  { id: "Sala de Vídeo", nome: "Sala de Vídeo", icone: "🎬",
+  { id: "Sala de Vídeo", nome: "Sala de Vídeo", icone: "🎬", cor: "#c9a227",
     cuidado: "Ao terminar: deixe a lousa e os demais aparelhos desligados, e o quadro limpo." },
-  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", icone: "💻",
+  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", icone: "💻", cor: "#1c4270",
     cuidado: "Ao terminar: devolva com todos os cabos conectados, confira a quantidade e deixe ligado para carregar." },
-  { id: "Biblioteca", nome: "Biblioteca", icone: "📚",
+  { id: "Biblioteca", nome: "Biblioteca", icone: "📚", cor: "#1f7a4d",
     cuidado: "Ao terminar: recoloque as carteiras e mesas no lugar, desligue o ar-condicionado, feche a porta e a janela, e devolva as chaves." }
 ];
 
@@ -540,6 +600,83 @@ function irParaHoje() {
 }
 
 /* ===================== MODAL: AGENDAR ===================== */
+/* ===================== VISÃO DA SEMANA ===================== */
+function diaAtualIndexNaSemana() {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  for (let i = 0; i < 5; i++) {
+    if (formatarISO(dataDaSemana(i)) === formatarISO(hoje)) return i;
+  }
+  return 0;
+}
+
+function abrirVisaoSemana() {
+  estado.diaSelecionado = diaAtualIndexNaSemana();
+  renderizarVisaoSemana();
+  document.getElementById('overlayVisaoSemana').classList.add('show');
+}
+function fecharVisaoSemana() {
+  document.getElementById('overlayVisaoSemana').classList.remove('show');
+}
+function selecionarDiaVisao(i) {
+  estado.diaSelecionado = i;
+  renderizarVisaoSemana();
+}
+
+function renderizarVisaoSemana() {
+  const inicio = estado.inicioSemana;
+  const fim = dataDaSemana(4);
+  document.getElementById('visaoSemanaRange').textContent =
+    `${formatarBR(inicio)} a ${formatarBR(fim)} de ${fim.getFullYear()}`;
+
+  // Chips dos dias
+  const chipsCont = document.getElementById('diaChips');
+  chipsCont.innerHTML = '';
+  DIAS_SEMANA.forEach((dia, i) => {
+    const data = dataDaSemana(i);
+    const chip = document.createElement('div');
+    chip.className = 'dia-chip' + (estado.diaSelecionado === i ? ' active' : '');
+    chip.onclick = () => selecionarDiaVisao(i);
+    chip.innerHTML = `<div class="dc-nome">${dia.curto}</div><div class="dc-data">${formatarBR(data)}</div>`;
+    chipsCont.appendChild(chip);
+  });
+
+  // Conteúdo do dia selecionado
+  const dataSel = dataDaSemana(estado.diaSelecionado);
+  const dataISO = formatarISO(dataSel);
+  const cont = document.getElementById('visaoConteudo');
+  cont.innerHTML = '';
+
+  TURNOS.forEach(turno => {
+    const titulo = document.createElement('div');
+    titulo.className = 'visao-turno-titulo';
+    titulo.textContent = turno.id;
+    cont.appendChild(titulo);
+
+    for (let aula = 1; aula <= turno.aulas; aula++) {
+      const linha = document.createElement('div');
+      linha.className = 'visao-linha';
+
+      let badgesHtml = `<div class="vl-aula">${aula}ª</div><div class="visao-badges">`;
+      RECURSOS.forEach(r => {
+        const ag = estado.agendamentos.find(a =>
+          a.recurso === r.id && a.data === dataISO && a.turno === turno.id && String(a.aula) === String(aula)
+        );
+        if (ag) {
+          badgesHtml += `<div class="badge-recurso ocupado" style="background:${r.cor}" onclick='alert(${JSON.stringify(`${r.nome}\n${ag.professor}` + (ag.disciplina ? `\n${ag.disciplina}` : '') + (ag.turma ? ` · ${ag.turma}` : '') + (ag.observacao ? `\n${ag.observacao}` : ''))})'>
+              <span class="br-icone">${r.icone}</span>${r.nome.split(' ')[0]}
+              <span class="br-prof">${escapeHtml(ag.professor)}</span>
+            </div>`;
+        } else {
+          badgesHtml += `<div class="badge-recurso"><span class="br-icone">${r.icone}</span>livre</div>`;
+        }
+      });
+      badgesHtml += '</div>';
+      linha.innerHTML = badgesHtml;
+      cont.appendChild(linha);
+    }
+  });
+}
+
 function abrirModalAgendar(recurso, dataISO, diaSemanaNome, turno, aula) {
   estado.agendarContexto = { recurso, data: dataISO, diaSemana: diaSemanaNome, turno, aula };
   const dataObj = new Date(dataISO + 'T00:00:00');
@@ -587,6 +724,9 @@ async function confirmarAgendamento() {
       await carregarAgendamentos();
     } else {
       msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Não foi possível agendar.'; msgEl.style.display='block';
+      // Se foi conflito (outro professor reservou no mesmo instante), atualiza a
+      // grade por trás do modal para já refletir a reserva concorrente.
+      carregarAgendamentos();
     }
   } catch (err) {
     msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor. Verifique a URL do backend e sua internet.'; msgEl.style.display='block';
@@ -683,6 +823,7 @@ async function carregarAgendamentos(manual) {
 /* ===================== INICIALIZAÇÃO ===================== */
 document.getElementById('overlayAgendar').addEventListener('click', e => { if (e.target.id==='overlayAgendar') fecharModalAgendar(); });
 document.getElementById('overlayCancelar').addEventListener('click', e => { if (e.target.id==='overlayCancelar') fecharModalCancelar(); });
+document.getElementById('overlayVisaoSemana').addEventListener('click', e => { if (e.target.id==='overlayVisaoSemana') fecharVisaoSemana(); });
 
 renderizarGrade();
 apsConfigurado();
