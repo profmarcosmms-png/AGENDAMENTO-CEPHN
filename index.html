@@ -102,9 +102,12 @@
   .dia-chip .dc-data{font-size:0.95rem; color:var(--navy); font-weight:700;}
   .dia-chip.active{border-color:var(--gold); background:#fffaf0;}
 
+  .turno-grupo{
+    border:2px solid #ccc; border-radius:16px; padding:12px 12px 4px; margin-bottom:16px;
+  }
   .visao-turno-titulo{
     font-size:0.78rem; font-weight:700; color:#fff; background:var(--navy);
-    padding:5px 10px; border-radius:999px; display:inline-block; margin:14px 0 8px;
+    padding:5px 10px; border-radius:999px; display:inline-block; margin:0 0 10px;
   }
   .visao-linha{
     display:flex; align-items:center; gap:8px; margin-bottom:8px;
@@ -115,15 +118,18 @@
   }
   .visao-badges{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; flex:1;}
   .badge-recurso{
-    border-radius:9px; padding:6px 4px; text-align:center; font-size:0.66rem;
-    border:1.5px solid #e3e3e0; background:#fff; color:var(--muted); cursor:default; line-height:1.3;
+    border-radius:9px; padding:8px 4px; text-align:center; font-size:0.66rem;
+    border:1.5px solid #e3e3e0; background:#fff; color:var(--muted); cursor:pointer; line-height:1.3;
+    transition:.12s;
   }
+  .badge-recurso:hover{border-color:var(--gold); background:#fffaf0;}
   .badge-recurso .br-icone{font-size:0.95rem; display:block;}
   .badge-recurso .br-nome{display:block; font-size:0.66rem; font-weight:700; margin-top:1px;}
   .badge-recurso .br-livre{display:block; font-size:0.6rem; opacity:0.75; margin-top:1px;}
   .badge-recurso.ocupado{
-    color:#fff; border-color:transparent; cursor:pointer; font-weight:600;
+    background:#dceafc; border-color:#b7d7f7; color:var(--navy); font-weight:600;
   }
+  .badge-recurso.ocupado:hover{background:#c7ddf7; border-color:#9dc6f2;}
   .badge-recurso .br-prof{display:block; font-size:0.62rem; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   main{max-width:1200px;margin:0 auto;padding:20px;}
@@ -305,10 +311,18 @@
     margin-top:6px; font-size:0.65rem; color:#b7bdc8; letter-spacing:.02em;
   }
 
+  .impressao-semana{display:none;}
+  .impressao-semana .is-dia-titulo{
+    font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy); font-weight:700;
+    margin:22px 0 8px; padding-bottom:4px; border-bottom:2px solid var(--gold);
+  }
+  .impressao-semana .is-dia-titulo:first-child{margin-top:0;}
+
   @media print{
-    header.top,.tabs,.weeknav,.search-row,.overlay,footer.credits,.aviso-uso,.aviso-importante{display:none !important;}
-    .slot-empty{display:none;}
+    header.top,.weeknav,.dia-chips,.search-row,.overlay,footer.credits,.aviso-importante{display:none !important;}
     body{background:#fff;}
+    body.imprimindo-semana #grades{display:none !important;}
+    body.imprimindo-semana .impressao-semana{display:block !important;}
   }
   @media (max-width:640px){
     table.grid, table.grid thead, table.grid tbody, table.grid th, table.grid td, table.grid tr{display:block;}
@@ -334,9 +348,9 @@
       </div>
     </div>
     <div class="top-actions">
-      <button class="pill-btn pill-destaque" onclick="abrirVisaoSemana()">📅 Visão da Semana</button>
       <button class="pill-btn" onclick="carregarAgendamentos(true)">↻ Atualizar</button>
-      <button class="pill-btn" onclick="window.print()">🖨 Imprimir semana</button>
+      <button class="pill-btn" onclick="window.print()">🖨 Imprimir dia</button>
+      <button class="pill-btn" onclick="imprimirSemana()">🖨 Imprimir semana</button>
     </div>
   </div>
 </header>
@@ -354,15 +368,6 @@
     <div class="ai-editar">✎ toque para editar (coordenação)</div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
-
-  <div class="aviso-uso" id="avisoUso">
-    <span class="aviso-icone">🧹</span>
-    <span id="avisoUsoTexto"></span>
-    <span class="aviso-separador">·</span>
-    <span class="aviso-desistencia">Desistiu do horário? Avise a coordenação <strong>imediatamente</strong> para liberar a baixa.</span>
-  </div>
-
   <div class="weeknav">
     <div class="navbtns">
       <button class="navbtn ghost" onclick="mudarSemana(-1)">◀ Semana anterior</button>
@@ -372,12 +377,16 @@
     <div class="range" id="weekRange"></div>
   </div>
 
+  <div class="dia-chips dia-chips-principal" id="diaChips"></div>
+
   <div class="search-row">
     <input type="text" id="buscaProfessor" placeholder="🔎 Buscar por nome do professor..." oninput="renderizarGrade()">
     <span class="status-dot"><span class="dot" id="statusDot"></span><span id="statusTexto">Sincronizado</span></span>
   </div>
 
   <div id="grades"></div>
+
+  <div id="impressaoSemana" class="impressao-semana"></div>
 
   <footer class="credits">
     Sistema de agendamento interno — Colégio Estadual Professora Helena Nasser. Cancelamentos exigem senha de coordenação.
@@ -429,19 +438,6 @@
       <button class="btn danger" id="btnConfirmarCancelar" onclick="confirmarCancelamento()">Confirmar cancelamento</button>
     </div>
     <div class="msg" id="msgCancelar"></div>
-  </div>
-</div>
-
-<!-- Modal: Visão da Semana -->
-<div class="overlay" id="overlayVisaoSemana">
-  <div class="modal-visao">
-    <div class="visao-header">
-      <h3>📅 Visão da Semana</h3>
-      <button class="visao-fechar" onclick="fecharVisaoSemana()">Fechar ✕</button>
-    </div>
-    <div class="visao-semana-range" id="visaoSemanaRange"></div>
-    <div class="dia-chips" id="diaChips"></div>
-    <div id="visaoConteudo"></div>
   </div>
 </div>
 
@@ -532,30 +528,6 @@ function dataDaSemana(offsetDias) {
   return d;
 }
 
-/* ===================== RENDER: TABS ===================== */
-function renderizarAvisoUso() {
-  const recurso = RECURSOS.find(r => r.id === estado.recursoAtivo);
-  document.getElementById('avisoUsoTexto').textContent = recurso ? recurso.cuidado : '';
-}
-
-function renderizarTabs() {
-  const cont = document.getElementById('tabs');
-  cont.innerHTML = '';
-  RECURSOS.forEach(r => {
-    const totalAtivos = estado.agendamentos.filter(a => a.Recurso === r.id).length;
-    const div = document.createElement('div');
-    div.className = 'tab' + (estado.recursoAtivo === r.id ? ' active' : '');
-    div.onclick = () => { estado.recursoAtivo = r.id; renderizarTudo(); };
-    div.innerHTML = `
-      <div class="icon">${r.icone}</div>
-      <div>
-        <div class="label">${r.nome}</div>
-        <div class="count">${totalAtivos} reserva(s) na base</div>
-      </div>`;
-    cont.appendChild(div);
-  });
-}
-
 /* ===================== RENDER: NAV DE SEMANA ===================== */
 function renderizarWeekNav() {
   const inicio = estado.inicioSemana;
@@ -564,89 +536,118 @@ function renderizarWeekNav() {
     `${formatarBR(inicio)} a ${formatarBR(fim)} de ${fim.getFullYear()}`;
 }
 
-/* ===================== RENDER: GRADE ===================== */
-function renderizarGrade() {
-  renderizarTabs();
-  renderizarAvisoUso();
-  renderizarWeekNav();
+function diaAtualIndexNaSemana() {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  for (let i = 0; i < 5; i++) {
+    if (formatarISO(dataDaSemana(i)) === formatarISO(hoje)) return i;
+  }
+  return 0;
+}
 
-  const filtroProf = (document.getElementById('buscaProfessor').value || '').trim().toLowerCase();
-  const recursoAtivoObj = RECURSOS.find(r => r.id === estado.recursoAtivo);
-  const cont = document.getElementById('grades');
-  cont.innerHTML = '';
-
-  TURNOS.forEach(turno => {
-    const bloco = document.createElement('div');
-    bloco.className = 'turno-block';
-
-    const header = document.createElement('div');
-    header.className = 'turno-header';
-    header.style.background = `linear-gradient(135deg, ${turno.cor}, ${turno.cor}cc)`;
-    header.innerHTML = `${turno.icone} ${turno.id} <span class="badge">${turno.aulas} aula(s)</span>`;
-    bloco.appendChild(header);
-
-    const table = document.createElement('table');
-    table.className = 'grid';
-
-    // Cabeçalho
-    const thead = document.createElement('thead');
-    let trHead = '<tr><th class="aula-col">Aula</th>';
-    DIAS_SEMANA.forEach((dia, i) => {
-      const data = dataDaSemana(i);
-      trHead += `<th>${dia.curto}<br>${formatarBR(data)}</th>`;
-    });
-    trHead += '</tr>';
-    thead.innerHTML = trHead;
-    table.appendChild(thead);
-
-    // Corpo
-    const tbody = document.createElement('tbody');
-    for (let aula = 1; aula <= turno.aulas; aula++) {
-      const tr = document.createElement('tr');
-      let tds = `<td class="aula-label">${aula}ª</td>`;
-
-      DIAS_SEMANA.forEach((dia, i) => {
-        const data = dataDaSemana(i);
-        const dataISO = formatarISO(data);
-        const agendamento = estado.agendamentos.find(a =>
-          a.Recurso === estado.recursoAtivo &&
-          a.Data === dataISO &&
-          a.Turno === turno.id &&
-          String(a.Aula) === String(aula)
-        );
-
-        tds += '<td>';
-        if (agendamento) {
-          const escondido = filtroProf && !(agendamento.Professor||'').toLowerCase().includes(filtroProf);
-          tds += `<div class="slot-booked" style="background:${recursoAtivoObj.cor};${escondido ? 'opacity:0.25' : ''}" onclick='abrirModalCancelar(${JSON.stringify(agendamento.ID)}, ${JSON.stringify(agendamento.Professor)})'>
-              <span class="sb-icone">${recursoAtivoObj.icone}</span>
-              <div class="prof">${escapeHtml(agendamento.Professor)}</div>
-              ${agendamento.Disciplina ? `<div class="disc">${escapeHtml(agendamento.Disciplina)}${agendamento.Turma ? ' · ' + escapeHtml(agendamento.Turma) : ''}</div>` : (agendamento.Turma ? `<div class="disc">${escapeHtml(agendamento.Turma)}</div>` : '')}
-              ${agendamento.Observacao ? `<div class="obs">${escapeHtml(agendamento.Observacao)}</div>` : ''}
-              <button class="cancel-btn" onclick='event.stopPropagation(); abrirModalCancelar(${JSON.stringify(agendamento.ID)}, ${JSON.stringify(agendamento.Professor)})'>Cancelar</button>
-            </div>`;
-        } else {
-          tds += `<div class="slot-empty" onclick='abrirModalAgendar(${JSON.stringify(estado.recursoAtivo)}, "${dataISO}", "${dia.nome}", "${turno.id}", ${aula})'>
-              <span class="se-icone">${recursoAtivoObj.icone}</span>
-              <span class="se-nome">${recursoAtivoObj.curto}</span>
-              <span class="se-status">livre · toque p/ agendar</span>
-            </div>`;
-        }
-        tds += '</td>';
-      });
-
-      tr.innerHTML = tds;
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    bloco.appendChild(table);
-    cont.appendChild(bloco);
+function renderizarDiaChips() {
+  const chipsCont = document.getElementById('diaChips');
+  chipsCont.innerHTML = '';
+  DIAS_SEMANA.forEach((dia, i) => {
+    const data = dataDaSemana(i);
+    const chip = document.createElement('div');
+    chip.className = 'dia-chip' + (estado.diaSelecionado === i ? ' active' : '');
+    chip.onclick = () => selecionarDia(i);
+    chip.innerHTML = `<div class="dc-nome">${dia.curto}</div><div class="dc-data">${formatarBR(data)}</div>`;
+    chipsCont.appendChild(chip);
   });
 }
 
-function renderizarTudo() {
+function selecionarDia(i) {
+  estado.diaSelecionado = i;
   renderizarGrade();
 }
+
+/* ===================== RENDER: AGENDA DO DIA (cartões clicáveis) ===================== */
+function construirBlocoDia(dataISO, diaNome, filtroProf, interativo) {
+  const frag = document.createDocumentFragment();
+  TURNOS.forEach(turno => {
+    const grupo = document.createElement('div');
+    grupo.className = 'turno-grupo';
+    grupo.style.borderColor = turno.cor;
+    grupo.style.background = `${turno.cor}0d`;
+
+    const titulo = document.createElement('div');
+    titulo.className = 'visao-turno-titulo';
+    titulo.style.background = turno.cor;
+    titulo.textContent = `${turno.icone} ${turno.id}`;
+    grupo.appendChild(titulo);
+
+    for (let aula = 1; aula <= turno.aulas; aula++) {
+      const linha = document.createElement('div');
+      linha.className = 'visao-linha';
+
+      let badgesHtml = `<div class="vl-aula">${aula}ª</div><div class="visao-badges">`;
+      RECURSOS.forEach(r => {
+        const ag = estado.agendamentos.find(a =>
+          a.Recurso === r.id && a.Data === dataISO && a.Turno === turno.id && String(a.Aula) === String(aula)
+        );
+        if (ag) {
+          const escondido = filtroProf && !(ag.Professor||'').toLowerCase().includes(filtroProf);
+          const clique = interativo ? `onclick='abrirModalCancelar(${JSON.stringify(ag.ID)}, ${JSON.stringify(ag.Professor)})'` : '';
+          badgesHtml += `<div class="badge-recurso ocupado" style="${escondido ? 'opacity:0.3' : ''}" ${clique}>
+              <span class="br-icone">${r.icone}</span>
+              <span class="br-nome">${r.curto}</span>
+              <span class="br-prof">${escapeHtml(ag.Professor)}</span>
+            </div>`;
+        } else {
+          const clique = interativo ? `onclick='abrirModalAgendar(${JSON.stringify(r.id)}, "${dataISO}", "${diaNome}", "${turno.id}", ${aula})'` : '';
+          badgesHtml += `<div class="badge-recurso" ${clique}>
+              <span class="br-icone">${r.icone}</span>
+              <span class="br-nome">${r.curto}</span>
+              <span class="br-livre">livre</span>
+            </div>`;
+        }
+      });
+      badgesHtml += '</div>';
+      linha.innerHTML = badgesHtml;
+      grupo.appendChild(linha);
+    }
+    frag.appendChild(grupo);
+  });
+  return frag;
+}
+
+function renderizarGrade() {
+  renderizarWeekNav();
+  renderizarDiaChips();
+
+  const filtroProf = (document.getElementById('buscaProfessor').value || '').trim().toLowerCase();
+  const dataSel = dataDaSemana(estado.diaSelecionado);
+  const dataISO = formatarISO(dataSel);
+  const diaObj = DIAS_SEMANA[estado.diaSelecionado];
+
+  const cont = document.getElementById('grades');
+  cont.innerHTML = '';
+  cont.appendChild(construirBlocoDia(dataISO, diaObj.nome, filtroProf, true));
+}
+
+function imprimirSemana() {
+  const filtroProf = (document.getElementById('buscaProfessor').value || '').trim().toLowerCase();
+  const cont = document.getElementById('impressaoSemana');
+  cont.innerHTML = '';
+
+  DIAS_SEMANA.forEach((dia, i) => {
+    const data = dataDaSemana(i);
+    const dataISO = formatarISO(data);
+    const tituloDia = document.createElement('div');
+    tituloDia.className = 'is-dia-titulo';
+    tituloDia.textContent = `${dia.nome} — ${formatarBR(data)}`;
+    cont.appendChild(tituloDia);
+    cont.appendChild(construirBlocoDia(dataISO, dia.nome, filtroProf, false));
+  });
+
+  document.body.classList.add('imprimindo-semana');
+  window.print();
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('imprimindo-semana');
+});
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -664,92 +665,11 @@ function mudarSemana(delta) {
 }
 function irParaHoje() {
   estado.inicioSemana = getSegundaFeira(new Date());
+  estado.diaSelecionado = diaAtualIndexNaSemana();
   renderizarGrade();
 }
 
 /* ===================== MODAL: AGENDAR ===================== */
-/* ===================== VISÃO DA SEMANA ===================== */
-function diaAtualIndexNaSemana() {
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  for (let i = 0; i < 5; i++) {
-    if (formatarISO(dataDaSemana(i)) === formatarISO(hoje)) return i;
-  }
-  return 0;
-}
-
-function abrirVisaoSemana() {
-  estado.diaSelecionado = diaAtualIndexNaSemana();
-  renderizarVisaoSemana();
-  document.getElementById('overlayVisaoSemana').classList.add('show');
-}
-function fecharVisaoSemana() {
-  document.getElementById('overlayVisaoSemana').classList.remove('show');
-}
-function selecionarDiaVisao(i) {
-  estado.diaSelecionado = i;
-  renderizarVisaoSemana();
-}
-
-function renderizarVisaoSemana() {
-  const inicio = estado.inicioSemana;
-  const fim = dataDaSemana(4);
-  document.getElementById('visaoSemanaRange').textContent =
-    `${formatarBR(inicio)} a ${formatarBR(fim)} de ${fim.getFullYear()}`;
-
-  // Chips dos dias
-  const chipsCont = document.getElementById('diaChips');
-  chipsCont.innerHTML = '';
-  DIAS_SEMANA.forEach((dia, i) => {
-    const data = dataDaSemana(i);
-    const chip = document.createElement('div');
-    chip.className = 'dia-chip' + (estado.diaSelecionado === i ? ' active' : '');
-    chip.onclick = () => selecionarDiaVisao(i);
-    chip.innerHTML = `<div class="dc-nome">${dia.curto}</div><div class="dc-data">${formatarBR(data)}</div>`;
-    chipsCont.appendChild(chip);
-  });
-
-  // Conteúdo do dia selecionado
-  const dataSel = dataDaSemana(estado.diaSelecionado);
-  const dataISO = formatarISO(dataSel);
-  const cont = document.getElementById('visaoConteudo');
-  cont.innerHTML = '';
-
-  TURNOS.forEach(turno => {
-    const titulo = document.createElement('div');
-    titulo.className = 'visao-turno-titulo';
-    titulo.style.background = turno.cor;
-    titulo.textContent = `${turno.icone} ${turno.id}`;
-    cont.appendChild(titulo);
-
-    for (let aula = 1; aula <= turno.aulas; aula++) {
-      const linha = document.createElement('div');
-      linha.className = 'visao-linha';
-
-      let badgesHtml = `<div class="vl-aula">${aula}ª</div><div class="visao-badges">`;
-      RECURSOS.forEach(r => {
-        const ag = estado.agendamentos.find(a =>
-          a.recurso === r.id && a.data === dataISO && a.turno === turno.id && String(a.aula) === String(aula)
-        );
-        if (ag) {
-          badgesHtml += `<div class="badge-recurso ocupado" style="background:${r.cor}" onclick='alert(${JSON.stringify(`${r.nome}\n${ag.professor}` + (ag.disciplina ? `\n${ag.disciplina}` : '') + (ag.turma ? ` · ${ag.turma}` : '') + (ag.observacao ? `\n${ag.observacao}` : ''))})'>
-              <span class="br-icone">${r.icone}</span>
-              <span class="br-nome">${r.curto}</span>
-              <span class="br-prof">${escapeHtml(ag.professor)}</span>
-            </div>`;
-        } else {
-          badgesHtml += `<div class="badge-recurso">
-              <span class="br-icone">${r.icone}</span>
-              <span class="br-nome">${r.curto}</span>
-              <span class="br-livre">livre</span>
-            </div>`;
-        }
-      });
-      badgesHtml += '</div>';
-      linha.innerHTML = badgesHtml;
-      cont.appendChild(linha);
-    }
-  });
-}
 
 /* ===================== AVISO IMPORTANTE (coordenação) ===================== */
 function renderizarAvisoImportante() {
@@ -951,9 +871,9 @@ async function carregarAgendamentos(manual) {
 /* ===================== INICIALIZAÇÃO ===================== */
 document.getElementById('overlayAgendar').addEventListener('click', e => { if (e.target.id==='overlayAgendar') fecharModalAgendar(); });
 document.getElementById('overlayCancelar').addEventListener('click', e => { if (e.target.id==='overlayCancelar') fecharModalCancelar(); });
-document.getElementById('overlayVisaoSemana').addEventListener('click', e => { if (e.target.id==='overlayVisaoSemana') fecharVisaoSemana(); });
 document.getElementById('overlayAviso').addEventListener('click', e => { if (e.target.id==='overlayAviso') fecharModalAviso(); });
 
+estado.diaSelecionado = diaAtualIndexNaSemana();
 renderizarGrade();
 renderizarAvisoImportante();
 apsConfigurado();
