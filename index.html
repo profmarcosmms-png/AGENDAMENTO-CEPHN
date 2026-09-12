@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agendamento de Espaços — Colégio Estadual Professora Helena Nasser</title>
 
+<!-- Firebase (Firestore) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
 <!-- PWA: permite "Adicionar à tela inicial" no Android e no iOS -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f2a4a">
@@ -358,8 +362,8 @@
 
 <main>
   <div id="configWarning" class="config-warning" style="display:none;">
-    ⚠️ O endereço do backend (Apps Script) ainda não foi configurado. Abra o arquivo <code>index.html</code> em um editor de texto,
-    localize a linha <code>const APPS_SCRIPT_URL</code> no início do <code>&lt;script&gt;</code> e cole a URL do seu Web App do Google Apps Script.
+    ⚠️ O Firebase ainda não foi configurado. Abra o arquivo <code>index.html</code> em um editor de texto,
+    localize o objeto <code>firebaseConfig</code> no início do <code>&lt;script&gt;</code> e cole os dados do seu projeto Firebase.
     Sem isso, os agendamentos não serão salvos nem compartilhados entre os professores.
   </div>
 
@@ -491,15 +495,29 @@
    CONFIGURAÇÃO — cole aqui a URL do seu Web App do Google Apps Script
    (Extensões > Apps Script > Implantar > Nova implantação > App da Web)
    ===================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwM3ym72ElwNJLrygacB83ReLo9rvPXF_y1SgSyupS5lVqEGyXhTKnXW4j-z8Fh2dcE/exec";
+/* =====================================================================
+   CONFIGURAÇÃO — cole aqui os dados do seu projeto Firebase
+   (Firebase Console → ⚙️ Configurações do projeto → Seus apps → Web)
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "COLE_AQUI_A_API_KEY",
+  authDomain: "COLE_AQUI.firebaseapp.com",
+  projectId: "COLE_AQUI_O_PROJECT_ID",
+  storageBucket: "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI_O_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 /* ===================== DADOS FIXOS DA ESCOLA ===================== */
 const RECURSOS = [
-  { id: "Sala de Vídeo", nome: "Sala de Vídeo", curto: "Sala de Vídeo", icone: "🎬", cor: "#c9a227",
+  { id: "Sala de Vídeo", nome: "Sala de Vídeo", curto: "Sala de Vídeo", icone: "🎬", cor: "#c9a227", slug: "video",
     cuidado: "Ao terminar: deixe a lousa e os demais aparelhos desligados, e o quadro limpo." },
-  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", curto: "Laboratório", icone: "💻", cor: "#1c4270",
+  { id: "Laboratório Móvel de Informática", nome: "Laboratório Móvel de Informática", curto: "Laboratório", icone: "💻", cor: "#1c4270", slug: "lab",
     cuidado: "Ao terminar: devolva com todos os cabos conectados, confira a quantidade e deixe ligado para carregar." },
-  { id: "Biblioteca", nome: "Biblioteca", curto: "Biblioteca", icone: "📚", cor: "#1f7a4d",
+  { id: "Biblioteca", nome: "Biblioteca", curto: "Biblioteca", icone: "📚", cor: "#1f7a4d", slug: "biblioteca",
     cuidado: "Ao terminar: recoloque as carteiras e mesas no lugar, desligue o ar-condicionado, feche a porta e a janela, e devolva as chaves." }
 ];
 
@@ -732,21 +750,34 @@ async function confirmarApagarTudo() {
     msgEl.className = 'msg error'; msgEl.textContent = 'Digite exatamente "APAGAR" (em maiúsculas) para confirmar.'; msgEl.style.display = 'block';
     return;
   }
-  if (!apsConfigurado()) return;
+  if (!firebaseConfigurado()) return;
 
   const btn = document.getElementById('btnApagarTudo');
   btn.disabled = true; btn.textContent = 'Apagando...';
 
   try {
-    const resp = await chamarBackend({ action: 'apagarTodos', senha });
-    if (resp.success) {
+    const senhaHash = await sha256Hex(senha);
+    const snap = await db.collection('agendamentos').where('Status', '==', 'Ativo').get();
+
+    if (snap.empty) {
       fecharModalApagarTudo();
-      await carregarAgendamentos();
-    } else {
-      msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Senha incorreta.'; msgEl.style.display = 'block';
+      return;
     }
+
+    // Grava em lotes de até 500 (limite do Firestore por batch)
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 500) {
+      const lote = db.batch();
+      docs.slice(i, i + 500).forEach(doc => {
+        lote.update(doc.ref, { Status: 'Cancelado', SenhaHash: senhaHash });
+      });
+      await lote.commit();
+    }
+
+    fecharModalApagarTudo();
+    // O listener em tempo real atualiza a tela sozinho.
   } catch (err) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor.'; msgEl.style.display = 'block';
+    msgEl.className = 'msg error'; msgEl.textContent = 'Senha incorreta ou erro de conexão.'; msgEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Apagar tudo';
   }
@@ -770,22 +801,22 @@ async function salvarAvisoImportante() {
     msgEl.className = 'msg error'; msgEl.textContent = 'Digite a senha de coordenação.'; msgEl.style.display = 'block';
     return;
   }
-  if (!apsConfigurado()) return;
+  if (!firebaseConfigurado()) return;
 
   const btn = document.getElementById('btnSalvarAviso');
   btn.disabled = true; btn.textContent = 'Salvando...';
 
   try {
-    const resp = await chamarBackend({ action: 'salvarAviso', senha, texto });
-    if (resp.success) {
-      estado.avisoImportante = { texto, atualizadoEm: new Date().toISOString() };
-      renderizarAvisoImportante();
-      fecharModalAviso();
-    } else {
-      msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Senha incorreta.'; msgEl.style.display = 'block';
-    }
+    const senhaHash = await sha256Hex(senha);
+    await db.collection('config').doc('avisoImportante').set({
+      texto: texto.trim(),
+      atualizadoEm: new Date().toISOString(),
+      SenhaHash: senhaHash
+    });
+    fecharModalAviso();
+    // O listener em tempo real já atualiza o campo no topo sozinho.
   } catch (err) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor.'; msgEl.style.display = 'block';
+    msgEl.className = 'msg error'; msgEl.textContent = 'Senha incorreta ou erro de conexão.'; msgEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Salvar aviso';
   }
@@ -817,33 +848,42 @@ async function confirmarAgendamento() {
     msgEl.className = 'msg error'; msgEl.textContent = 'Informe o nome do professor(a).'; msgEl.style.display='block';
     return;
   }
-  if (!apsConfigurado()) return;
+  if (!firebaseConfigurado()) return;
 
   const btn = document.getElementById('btnConfirmarAgendar');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
-  const payload = {
-    action: 'agendar',
-    ...estado.agendarContexto,
-    professor,
-    disciplina: document.getElementById('inpDisciplina').value.trim(),
-    turma: document.getElementById('inpTurma').value.trim(),
-    observacao: document.getElementById('inpObs').value.trim()
+  const ctx = estado.agendarContexto;
+  const recursoObj = RECURSOS.find(r => r.id === ctx.recurso);
+  // ID determinístico: cada horário só pode existir uma vez no banco.
+  // É essa unicidade (garantida pelas regras do Firestore) que impede
+  // dois professores reservarem o mesmo horário ao mesmo tempo.
+  const docId = `${recursoObj.slug}__${ctx.data}__${ctx.turno}__${ctx.aula}`;
+
+  const novoAgendamento = {
+    ID: docId,
+    Recurso: ctx.recurso,
+    Data: ctx.data,
+    DiaSemana: ctx.diaSemana,
+    Turno: ctx.turno,
+    Aula: ctx.aula,
+    Professor: professor,
+    Disciplina: document.getElementById('inpDisciplina').value.trim(),
+    Turma: document.getElementById('inpTurma').value.trim(),
+    Observacao: document.getElementById('inpObs').value.trim(),
+    CriadoEm: new Date().toISOString(),
+    Status: 'Ativo'
   };
 
   try {
-    const resp = await chamarBackend(payload);
-    if (resp.success) {
-      fecharModalAgendar();
-      await carregarAgendamentos();
-    } else {
-      msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Não foi possível agendar.'; msgEl.style.display='block';
-      // Se foi conflito (outro professor reservou no mesmo instante), atualiza a
-      // grade por trás do modal para já refletir a reserva concorrente.
-      carregarAgendamentos();
-    }
+    await db.collection('agendamentos').doc(docId).set(novoAgendamento);
+    fecharModalAgendar();
+    // Não precisa recarregar manualmente: o listener em tempo real
+    // já atualiza a tela sozinho assim que a gravação é confirmada.
   } catch (err) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor. Verifique a URL do backend e sua internet.'; msgEl.style.display='block';
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Este horário já está reservado, ou ocorreu um erro. Atualize e escolha outro.';
+    msgEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Confirmar reserva';
   }
@@ -869,29 +909,29 @@ async function confirmarCancelamento() {
     msgEl.className = 'msg error'; msgEl.textContent = 'Digite a senha de cancelamento.'; msgEl.style.display='block';
     return;
   }
-  if (!apsConfigurado()) return;
+  if (!firebaseConfigurado()) return;
 
   const btn = document.getElementById('btnConfirmarCancelar');
   btn.disabled = true; btn.textContent = 'Cancelando...';
 
   try {
-    const resp = await chamarBackend({ action:'cancelar', id: estado.cancelarContexto.id, senha });
-    if (resp.success) {
-      fecharModalCancelar();
-      await carregarAgendamentos();
-    } else {
-      msgEl.className = 'msg error'; msgEl.textContent = resp.message || 'Senha incorreta.'; msgEl.style.display='block';
-    }
+    const senhaHash = await sha256Hex(senha);
+    await db.collection('agendamentos').doc(estado.cancelarContexto.id).update({
+      Status: 'Cancelado',
+      SenhaHash: senhaHash
+    });
+    fecharModalCancelar();
+    // O listener em tempo real atualiza a tela sozinho.
   } catch (err) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'Erro de conexão com o servidor.'; msgEl.style.display='block';
+    msgEl.className = 'msg error'; msgEl.textContent = 'Senha incorreta, ou o agendamento já não existe mais.'; msgEl.style.display='block';
   } finally {
     btn.disabled = false; btn.textContent = 'Confirmar cancelamento';
   }
 }
 
-/* ===================== BACKEND ===================== */
-function apsConfigurado() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('COLE_AQUI')) {
+/* ===================== BACKEND (Firebase/Firestore) ===================== */
+function firebaseConfigurado() {
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('COLE_AQUI')) {
     document.getElementById('configWarning').style.display = 'block';
     window.scrollTo({top:0, behavior:'smooth'});
     return false;
@@ -899,39 +939,48 @@ function apsConfigurado() {
   return true;
 }
 
-async function chamarBackend(payload) {
-  // Content-Type text/plain evita o preflight CORS; o Apps Script
-  // continua lendo e.postData.contents como JSON normalmente.
-  const resp = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  });
-  return await resp.json();
+// Calcula o hash SHA-256 de um texto (usado para a senha da coordenação
+// nunca trafegar nem ficar salva em texto puro).
+async function sha256Hex(texto) {
+  const dados = new TextEncoder().encode(texto);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dados);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function iniciarListenersFirestore() {
+  if (!firebaseConfigurado()) return;
+
+  db.collection('agendamentos').where('Status', '==', 'Ativo').onSnapshot(snap => {
+    estado.agendamentos = snap.docs.map(d => d.data());
+    renderizarGrade();
+    document.getElementById('statusDot').style.background = '#1f7a4d';
+    document.getElementById('statusTexto').textContent = 'Sincronizado';
+  }, () => {
+    document.getElementById('statusDot').style.background = '#b3261e';
+    document.getElementById('statusTexto').textContent = 'Sem conexão';
+  });
+
+  db.collection('config').doc('avisoImportante').onSnapshot(doc => {
+    estado.avisoImportante = doc.exists ? doc.data() : { texto: '', atualizadoEm: null };
+    renderizarAvisoImportante();
+  });
+}
+
+// Botão "↻ Atualizar": os dados já chegam ao vivo pelos listeners acima,
+// então isso só força uma nova leitura pontual pra tranquilizar quem clicou.
 async function carregarAgendamentos(manual) {
-  if (!apsConfigurado()) { return; }
+  if (!firebaseConfigurado()) return;
   const dot = document.getElementById('statusDot');
   const texto = document.getElementById('statusTexto');
-  dot.style.background = '#c9a227';
-  texto.textContent = manual ? 'Atualizando...' : 'Sincronizando...';
+  if (manual) { dot.style.background = '#c9a227'; texto.textContent = 'Atualizando...'; }
   try {
-    const resp = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
-    const data = await resp.json();
-    if (data.success) {
-      estado.agendamentos = data.agendamentos || [];
-      if (data.aviso) estado.avisoImportante = data.aviso;
-      renderizarAvisoImportante();
-      dot.style.background = '#1f7a4d';
-      texto.textContent = 'Sincronizado';
-    } else {
-      dot.style.background = '#b3261e';
-      texto.textContent = 'Erro ao sincronizar';
-    }
+    const snap = await db.collection('agendamentos').where('Status', '==', 'Ativo').get();
+    estado.agendamentos = snap.docs.map(d => d.data());
+    dot.style.background = '#1f7a4d';
+    texto.textContent = 'Sincronizado';
   } catch (err) {
     dot.style.background = '#b3261e';
-    texto.textContent = 'Sem conexão com o servidor';
+    texto.textContent = 'Sem conexão';
   }
   renderizarGrade();
 }
@@ -945,9 +994,8 @@ document.getElementById('overlayApagarTudo').addEventListener('click', e => { if
 estado.diaSelecionado = diaAtualIndexNaSemana();
 renderizarGrade();
 renderizarAvisoImportante();
-apsConfigurado();
-carregarAgendamentos();
-setInterval(() => carregarAgendamentos(false), 30000); // sincroniza a cada 30s
+firebaseConfigurado();
+iniciarListenersFirestore();
 
 // Registro do service worker — habilita a instalação como PWA (Android/Chrome)
 if ('serviceWorker' in navigator) {
